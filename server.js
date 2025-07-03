@@ -18,14 +18,13 @@ app.get('/login', (req, res) => {
     scope,
     redirect_uri: REDIRECT_URI,
   });
-  console.log('Redirecting to Spotify Auth URL:', authUrl);
   res.redirect(authUrl);
 });
 
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) {
-    return res.status(400).send('Missing code parameter in callback');
+    return res.status(400).send('Missing code parameter');
   }
 
   try {
@@ -38,7 +37,8 @@ app.get('/callback', async (req, res) => {
       }),
       {
         headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64'),
+          Authorization:
+            'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64'),
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       }
@@ -46,15 +46,12 @@ app.get('/callback', async (req, res) => {
 
     const access_token = tokenResponse.data.access_token;
 
-    // Redirect back to frontend with token in URL hash (safer for frontend JS)
-    res.redirect(`http://localhost:5500/index.html#access_token=${access_token}`);
+    res.redirect(`https://your-frontend-url.netlify.app/index.html#access_token=${access_token}`);
   } catch (err) {
-    console.error('Error getting token:', err.response?.data || err.message);
+    console.error('Error fetching token:', err.response?.data || err.message);
     res.status(500).send('Failed to get access token');
   }
 });
 
-const PORT = 8888;
-app.listen(PORT, () => {
-  console.log(`Spotify auth server running at http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 8888;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
