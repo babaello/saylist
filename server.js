@@ -46,7 +46,7 @@ app.get('/callback', async (req, res) => {
 
     const access_token = tokenResponse.data.access_token;
 
-    // Redirect to your GitHub Pages frontend, passing token in URL hash
+    // Redirect to frontend with token in hash fragment
     res.redirect(`https://babaello.github.io/saylist/index.html#access_token=${access_token}`);
   } catch (err) {
     console.error('Error fetching token:', err.response?.data || err.message);
