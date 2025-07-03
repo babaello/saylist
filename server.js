@@ -46,7 +46,8 @@ app.get('/callback', async (req, res) => {
 
     const access_token = tokenResponse.data.access_token;
 
-    res.redirect(`https://your-frontend-url.netlify.app/index.html#access_token=${access_token}`);
+    // Redirect to your GitHub Pages frontend, passing token in URL hash
+    res.redirect(`https://babaello.github.io/saylist/index.html#access_token=${access_token}`);
   } catch (err) {
     console.error('Error fetching token:', err.response?.data || err.message);
     res.status(500).send('Failed to get access token');
