@@ -1,53 +1,138 @@
+// script.js
+
 const loginBtn = document.getElementById('loginBtn');
 const generateBtn = document.getElementById('generateBtn');
 const statusEl = document.getElementById('status');
 const appSection = document.getElementById('app');
+const sentenceInput = document.getElementById('sentenceInput');
+
 let accessToken = '';
 
+// Parse access token from URL hash (after login redirect)
+function getAccessTokenFromHash() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  return params.get('access_token');
+}
+
 window.onload = () => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('access_token')) {
-    accessToken = params.get('access_token');
+  accessToken = getAccessTokenFromHash();
+
+  if (accessToken) {
     loginBtn.style.display = 'none';
     appSection.style.display = 'block';
+
+    // Clear the URL hash for cleanliness
+    history.replaceState(null, '', 'index.html');
   }
 };
 
-loginBtn.onclick = () => { window.location.href = 'http://localhost:8888/login'; };
+loginBtn.onclick = () => {
+  window.location.href = 'http://localhost:8888/login';
+};
 
 generateBtn.onclick = async () => {
-  const sentence = document.getElementById('sentenceInput').value.trim();
-  if (!sentence) return;
-  statusEl.textContent = 'Creating playlist...';
+  const sentence = sentenceInput.value.trim();
+
+  if (!sentence) {
+    statusEl.textContent = 'Please enter a sentence.';
+    return;
+  }
+
+  statusEl.textContent = 'Searching songs... This might take a few seconds.';
+
   const words = sentence.split(/\s+/);
-  const headers = { Authorization: `Bearer ${accessToken}` };
+
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+
   try {
+    // Get current user ID
     const userRes = await fetch('https://api.spotify.com/v1/me', { headers });
+    if (!userRes.ok) throw new Error('Invalid token or failed to fetch user.');
     const userData = await userRes.json();
+
     const songUris = [];
+
     for (const word of words) {
-      const res = await fetch(`https://api.spotify.com/v1/search?q=track:${encodeURIComponent(word)}&type=track&limit=1`, { headers });
-      const data = await res.json();
-      if (data.tracks.items[0]) songUris.push(data.tracks.items[0].uri);
+      // Search for a track with the exact word in the title
+      const query = `track:"${word}"`;
+      const searchRes = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+        { headers }
+      );
+
+      if (!searchRes.ok) {
+        statusEl.textContent = `Failed to search for "${word}".`;
+        return;
+      }
+
+      const searchData = await searchRes.json();
+
+      if (
+        searchData.tracks &&
+        searchData.tracks.items &&
+        searchData.tracks.items.length > 0
+      ) {
+        songUris.push(searchData.tracks.items[0].uri);
+      } else {
+        console.warn(`No track found for "${word}"`);
+      }
     }
-    const playlistRes = await fetch(`https://api.spotify.com/v1/users/${userData.id}/playlists`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: `Saylist: "${sentence}"`,
-        description: 'One song per word!',
-        public: false,
-      }),
-    });
-    const playlist = await playlistRes.json();
-    await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uris: songUris }),
-    });
-    statusEl.innerHTML = `✅ Playlist created! <a href="${playlist.external_urls.spotify}" target="_blank">Open in Spotify</a>`;
+
+    if (songUris.length === 0) {
+      statusEl.textContent = 'No songs found for the words in your sentence.';
+      return;
+    }
+
+    statusEl.textContent = 'Creating playlist...';
+
+    // Create playlist
+    const createPlaylistRes = await fetch(
+      `https://api.spotify.com/v1/users/${userData.id}/playlists`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: `Saylist: "${sentence}"`,
+          description: 'Playlist with one song per word',
+          public: false,
+        }),
+      }
+    );
+
+    if (!createPlaylistRes.ok) {
+      throw new Error('Failed to create playlist');
+    }
+
+    const playlistData = await createPlaylistRes.json();
+
+    // Add tracks to playlist
+    const addTracksRes = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistData.id}/tracks`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uris: songUris,
+        }),
+      }
+    );
+
+    if (!addTracksRes.ok) {
+      throw new Error('Failed to add tracks to playlist');
+    }
+
+    statusEl.innerHTML = `✅ Playlist created! <a href="${playlistData.external_urls.spotify}" target="_blank" rel="noopener noreferrer">Open in Spotify</a>`;
   } catch (err) {
     console.error(err);
-    statusEl.textContent = '⚠️ Error creating playlist';
+    statusEl.textContent = '⚠️ Error: ' + err.message;
   }
 };
