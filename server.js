@@ -1,58 +1,102 @@
-// server.js
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const querystring = require('querystring');
-require('dotenv').config();
+const loginBtn = document.getElementById('loginBtn');
+const generateBtn = document.getElementById('generateBtn');
+const statusEl = document.getElementById('status');
+const appSection = document.getElementById('app');
+const sentenceInput = document.getElementById('sentenceInput');
 
-const app = express();
-app.use(cors());
+let accessToken = '';
 
-const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI } = process.env;
+function getAccessTokenFromHash() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  return params.get('access_token');
+}
 
-app.get('/login', (req, res) => {
-  const scope = 'playlist-modify-private playlist-modify-public';
-  const authUrl = 'https://accounts.spotify.com/authorize?' + querystring.stringify({
-    response_type: 'code',
-    client_id: CLIENT_ID,
-    scope,
-    redirect_uri: REDIRECT_URI,
-  });
-  res.redirect(authUrl);
-});
+window.onload = () => {
+  accessToken = getAccessTokenFromHash();
 
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) {
-    return res.status(400).send('Missing code parameter');
+  if (accessToken) {
+    loginBtn.style.display = 'none';
+    appSection.style.display = 'block';
+    history.replaceState(null, '', 'index.html');
   }
+};
+
+loginBtn.onclick = () => {
+  window.location.href = 'https://saylist-backend.onrender.com/login';
+};
+
+generateBtn.onclick = async () => {
+  const sentence = sentenceInput.value.trim();
+
+  if (!sentence) {
+    statusEl.textContent = 'Please enter a sentence.';
+    return;
+  }
+
+  statusEl.textContent = 'Searching songs... This might take a moment.';
+
+  const words = sentence.split(/\s+/);
+  const headers = { Authorization: `Bearer ${accessToken}` };
 
   try {
-    const tokenResponse = await axios.post(
-      'https://accounts.spotify.com/api/token',
-      querystring.stringify({
-        code,
-        redirect_uri: REDIRECT_URI,
-        grant_type: 'authorization_code',
-      }),
+    const userRes = await fetch('https://api.spotify.com/v1/me', { headers });
+    if (!userRes.ok) throw new Error('Invalid token or failed to fetch user.');
+    const userData = await userRes.json();
+
+    const songUris = [];
+    for (const word of words) {
+      const query = `track:"${word}"`;
+      const searchRes = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+        { headers }
+      );
+      if (!searchRes.ok) {
+        statusEl.textContent = `Failed to search for "${word}".`;
+        return;
+      }
+      const searchData = await searchRes.json();
+      if (searchData.tracks.items.length > 0) {
+        songUris.push(searchData.tracks.items[0].uri);
+      }
+    }
+
+    if (songUris.length === 0) {
+      statusEl.textContent = 'No songs found for your sentence.';
+      return;
+    }
+
+    statusEl.textContent = 'Creating playlist...';
+
+    const createPlaylistRes = await fetch(
+      `https://api.spotify.com/v1/users/${userData.id}/playlists`,
       {
-        headers: {
-          Authorization:
-            'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Saylist: "${sentence}"`,
+          description: 'Playlist with one song per word',
+          public: false,
+        }),
       }
     );
+    if (!createPlaylistRes.ok) throw new Error('Failed to create playlist');
 
-    const access_token = tokenResponse.data.access_token;
+    const playlistData = await createPlaylistRes.json();
 
-    // Redirect to frontend with token in hash fragment
-    res.redirect(`https://babaello.github.io/saylist/index.html#access_token=${access_token}`);
+    const addTracksRes = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistData.id}/tracks`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: songUris }),
+      }
+    );
+    if (!addTracksRes.ok) throw new Error('Failed to add tracks');
+
+    statusEl.innerHTML = `✅ Playlist created! <a href="${playlistData.external_urls.spotify}" target="_blank" rel="noopener noreferrer">Open in Spotify</a>`;
   } catch (err) {
-    console.error('Error fetching token:', err.response?.data || err.message);
-    res.status(500).send('Failed to get access token');
+    statusEl.textContent = `⚠️ Error: ${err.message}`;
+    console.error(err);
   }
-});
-
-const PORT = process.env.PORT || 8888;
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+};
