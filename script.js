@@ -19,14 +19,12 @@ let refreshToken = null;
 let storedState = null;
 let currentPlaylistId = null;
 
-// Synonyms map for fallback word->search term
 const synonymsMap = {
   hello: ["hi", "hey"],
   happy: ["joyful", "cheerful", "smile"],
   sad: ["blue", "tear", "cry"],
   love: ["heart", "romance", "affection"],
   rickroll: ["rick astley", "never gonna give you up"],
-  // add more if you want...
 };
 
 function generateState() {
@@ -115,10 +113,9 @@ function handleRedirect() {
 function getSpotifySearchURL(query) {
   return `https://api.spotify.com/v1/search?q=${encodeURIComponent(
     query
-  )}&type=track&limit=5`;
+  )}&type=track&limit=20`; // increased limit to 20
 }
 
-// Updated searchTrack: ONLY exact match (case-insensitive)
 async function searchTrack(word) {
   let queries = [word];
   if (synonymsMap[word.toLowerCase()]) {
@@ -130,14 +127,23 @@ async function searchTrack(word) {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) continue;
+    if (!res.ok) {
+      console.warn(`Spotify search failed for "${q}"`);
+      continue;
+    }
     const data = await res.json();
     if (data.tracks && data.tracks.items.length > 0) {
-      // Exact match only:
       let track = data.tracks.items.find(
         (t) => t.name.toLowerCase() === q.toLowerCase()
       );
-      if (track) return track;
+      if (track) {
+        console.log(`Exact match found for "${q}": "${track.name}"`);
+        return track;
+      } else {
+        console.log(`No exact match for "${q}" in returned tracks.`);
+      }
+    } else {
+      console.log(`No tracks returned for "${q}".`);
     }
   }
   return null;
@@ -169,7 +175,7 @@ async function generatePlaylist(sentence) {
         tracks.push(track);
       }
     } catch {
-      // Ignore per-word search errors
+      // Ignore per-word errors
     }
   }
 
