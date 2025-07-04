@@ -1,35 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saylist 🎵 — Sentence to Spotify Playlist</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saylist — Sentence to Spotify Playlist</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="container" role="main">
-    <h1>🎶 Saylist</h1>
-    <p>Enter a sentence and get a custom Spotify playlist — one song per word.</p>
+  <div id="app" class="container">
+    <h1>Saylist</h1>
+    <button id="login-btn">Log in with Spotify</button>
+    <div id="login-error" class="error"></div>
 
-    <button id="loginBtn" class="btn primary">Log in with Spotify</button>
+    <div id="main-ui" style="display:none;">
+      <textarea id="sentence-input" placeholder="Type your sentence here..."></textarea>
+      <button id="generate-btn">Generate Playlist</button>
 
-    <section id="app" hidden>
-      <label for="sentenceInput" class="sr-only">Enter your sentence</label>
-      <textarea id="sentenceInput" rows="3" placeholder="Type your sentence here..." aria-describedby="helpText" autofocus></textarea>
-      <div id="helpText" class="help-text">Words are matched to song titles.</div>
+      <div id="playlist-info" style="display:none;">
+        <h2>Generated Playlist Preview</h2>
+        <ul id="tracks-list"></ul>
+        <button id="create-playlist-btn">Create Playlist on Spotify</button>
+        <button id="copy-link-btn" title="Copy playlist link">Copy Link</button>
+      </div>
+      <div id="loading" style="display:none;">Loading...</div>
+      <div id="error-msg" class="error"></div>
+    </div>
 
-      <button id="generateBtn" class="btn" aria-live="polite" aria-busy="false">Generate Playlist</button>
+    <div id="darkmode-toggle">
+      <label><input type="checkbox" id="darkmode-checkbox" /> Dark Mode</label>
+    </div>
+  </div>
 
-      <p id="status" role="alert" aria-live="assertive"></p>
-
-      <section id="playlistSection" hidden>
-        <h2>Your Playlist</h2>
-        <div id="spotifyPlayer"></div>
-        <a id="playlistLink" href="#" target="_blank" rel="noopener noreferrer" class="btn link-btn">Open Playlist in Spotify</a>
-      </section>
-    </section>
-  </main>
-
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
