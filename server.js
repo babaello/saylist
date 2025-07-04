@@ -144,3 +144,6 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Saylist backend listening on port ${PORT}`);
 });
+
+import cookieParser from "cookie-parser";
+app.use(cookieParser());
