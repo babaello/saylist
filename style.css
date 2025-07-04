@@ -1,127 +1,184 @@
-/* Reset & base */
-* {
-  box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap');
+
+:root {
+  --color-bg-light: #f9f9f9;
+  --color-text-light: #222;
+  --color-bg-dark: #121212;
+  --color-text-dark: #eee;
+  --color-primary: #1db954;
+  --color-error: #e63946;
 }
+
 body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--color-bg-light);
+  color: var(--color-text-light);
   margin: 0;
-  background: #121212;
-  color: #eee;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
   padding: 2rem;
+  transition: background 0.4s ease, color 0.4s ease;
 }
+
+body.dark {
+  background: var(--color-bg-dark);
+  color: var(--color-text-dark);
+}
+
 .container {
-  max-width: 480px;
-  background: #181818;
+  max-width: 600px;
+  width: 100%;
+  background: rgba(255 255 255 / 0.85);
   padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 0 25px #1db954aa;
-  text-align: center;
+  border-radius: 16px;
+  box-shadow: 0 6px 25px rgba(0,0,0,0.1);
+  transition: background 0.4s ease;
 }
+
+body.dark .container {
+  background: rgba(18 18 18 / 0.85);
+  box-shadow: 0 6px 25px rgba(0,0,0,0.8);
+}
+
 h1 {
-  color: #1db954;
-  margin-bottom: 0.25rem;
-}
-p {
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: #b3b3b3;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 2.4rem;
+  text-align: center;
+  color: var(--color-primary);
+  user-select: none;
+  text-shadow: 0 0 6px var(--color-primary);
 }
+
 textarea {
   width: 100%;
-  font-size: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: none;
+  min-height: 100px;
+  padding: 1rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  font-size: 1.1rem;
   resize: vertical;
-  background: #282828;
-  color: #eee;
-  box-shadow: inset 0 0 5px #000;
-  margin-bottom: 1rem;
-  min-height: 70px;
-  transition: box-shadow 0.3s ease;
+  background: transparent;
+  color: inherit;
+  transition: border-color 0.3s ease;
 }
+
 textarea:focus {
+  border-color: #17d861;
   outline: none;
-  box-shadow: 0 0 8px #1db954;
+  box-shadow: 0 0 8px #17d861aa;
 }
-.btn {
-  display: inline-block;
-  padding: 0.75rem 1.75rem;
-  font-weight: 700;
-  font-size: 1rem;
-  border-radius: 30px;
-  cursor: pointer;
+
+button {
+  margin-top: 1rem;
+  background-color: var(--color-primary);
   border: none;
-  background-color: #3a3a3a;
-  color: #eee;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  cursor: pointer;
   transition: background-color 0.3s ease;
   user-select: none;
+  box-shadow: 0 4px 10px var(--color-primary);
 }
-.btn:hover,
-.btn:focus-visible {
-  background-color: #1db954;
-  color: #121212;
-  outline-offset: 4px;
+
+button:hover {
+  background-color: #17d861;
+  box-shadow: 0 6px 16px #17d861bb;
 }
-.primary {
-  background-color: #1db954;
-  color: #121212;
-}
-.primary:hover,
-.primary:focus-visible {
-  background-color: #17c547;
-}
-.help-text {
-  font-size: 0.875rem;
-  color: #666;
-  margin-bottom: 1rem;
-  text-align: left;
-}
-#status {
+
+#error-msg, #login-error {
+  color: var(--color-error);
   margin-top: 1rem;
   font-weight: 600;
-  min-height: 1.2em;
+  text-align: center;
+  user-select: none;
 }
-#playlistSection {
-  margin-top: 2rem;
-}
-#spotifyPlayer iframe {
-  width: 100%;
-  border-radius: 12px;
-  border: none;
-  aspect-ratio: 1 / 1;
-  max-height: 380px;
-}
-.link-btn {
+
+#tracks-list {
+  list-style: none;
+  padding-left: 0;
   margin-top: 1rem;
-  background: transparent;
-  color: #1db954;
-  border: 2px solid #1db954;
-  padding: 0.5rem 1rem;
-  font-weight: 700;
-  border-radius: 30px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  max-height: 250px;
+  overflow-y: auto;
 }
-.link-btn:hover,
-.link-btn:focus-visible {
-  background-color: #1db954;
-  color: #121212;
-  outline-offset: 4px;
+
+#tracks-list li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #ccc;
 }
-.sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0,0,0,0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
+
+#tracks-list li:last-child {
+  border-bottom: none;
+}
+
+.track-info {
+  margin-left: 1rem;
+  flex: 1;
+}
+
+.track-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.track-artist {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.audio-preview {
+  width: 64px;
+  height: 40px;
+  margin-left: 1rem;
+  border-radius: 6px;
+}
+
+#darkmode-toggle {
+  margin-top: 2rem;
+  text-align: center;
+  user-select: none;
+}
+
+#copy-link-btn {
+  margin-left: 1rem;
+  background-color: #666;
+  box-shadow: none;
+}
+
+#copy-link-btn:hover {
+  background-color: #444;
+}
+
+#loading {
+  text-align: center;
+  font-weight: 600;
+  margin-top: 1rem;
+  user-select: none;
+}
+
+/* Subtle animated background behind container */
+body::before {
+  content: "";
+  position: fixed;
+  top: -40%;
+  left: -40%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, var(--color-primary) 0%, transparent 70%);
+  filter: blur(140px);
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+body.dark::before {
+  background: radial-gradient(circle at center, #17d861 0%, transparent 70%);
+  opacity: 0.25;
 }
