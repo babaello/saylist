@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://saylist.onrender.com"; 
+const BACKEND_URL = "https://saylist.onrender.com";
 const FRONTEND_URL = "https://babaello.github.io/saylist";
 
 const loginBtn = document.getElementById("login-btn");
@@ -110,10 +110,12 @@ function handleRedirect() {
   }
 }
 
-function getSpotifySearchURL(query) {
-  return `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-    query
-  )}&type=track&limit=20`; // increased limit to 20
+// Normalize titles for strict matching (remove punctuation, spaces, lowercase)
+function normalizeTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/[\W_]+/g, "") // remove non-alphanumeric characters
+    .trim();
 }
 
 async function searchTrack(word) {
@@ -123,7 +125,10 @@ async function searchTrack(word) {
   }
 
   for (const q of queries) {
-    const url = getSpotifySearchURL(q);
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+      q
+    )}&type=track&limit=50`; // max limit 50 for better matching
+
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -133,14 +138,16 @@ async function searchTrack(word) {
     }
     const data = await res.json();
     if (data.tracks && data.tracks.items.length > 0) {
-      let track = data.tracks.items.find(
-        (t) => t.name.toLowerCase() === q.toLowerCase()
-      );
+      const normQuery = normalizeTitle(q);
+      let track = data.tracks.items.find((t) => {
+        const normTrackName = normalizeTitle(t.name);
+        return normTrackName === normQuery;
+      });
       if (track) {
-        console.log(`Exact match found for "${q}": "${track.name}"`);
+        console.log(`Exact strict match found for "${q}": "${track.name}"`);
         return track;
       } else {
-        console.log(`No exact match for "${q}" in returned tracks.`);
+        console.log(`No strict exact match for "${q}".`);
       }
     } else {
       console.log(`No tracks returned for "${q}".`);
