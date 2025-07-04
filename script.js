@@ -122,9 +122,8 @@ async function searchTrack(word) {
   }
 
   for (const q of queries) {
-    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-      q
-    )}&type=track&limit=50`;
+    // Use Spotify advanced search syntax: track:"word" for exact title search
+    const url = `https://api.spotify.com/v1/search?q=track:"${encodeURIComponent(q)}"&type=track&limit=50`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
