@@ -6,14 +6,14 @@ import crypto from "crypto";
 const app = express();
 app.use(cors());
 
-const CLIENT_ID = "7f69356de8634da0b43c4c650b8eb3fc"; // Your Spotify Client ID
-const CLIENT_SECRET = "9e9b04ffc205438e8f3708f12604d6ac"; // Your Spotify Client Secret
-const FRONTEND_URI = "https://babaello.github.io/saylist/"; // Your frontend URL (GitHub Pages)
-const PORT = process.env.PORT || 8888;
+// Your Spotify credentials
+const CLIENT_ID = "7f69356de8634da0b43c4c650b8eb3fc";
+const CLIENT_SECRET = "9e9b04ffc205438e8f3708f12604d6ac";
 
-const redirect_uri = `${process.env.REDIRECT_URI || FRONTEND_URI}`;
+// THIS MUST EXACTLY MATCH your Spotify app redirect URI and your frontend URL
+const redirect_uri = "https://babaello.github.io/saylist/";
 
-// In-memory state & code verifier storage (for demo; use DB for prod)
+// For demo: store state and codeVerifier in memory (use a DB in production)
 const stateVerifiers = new Map();
 
 function generateRandomString(length) {
@@ -32,7 +32,6 @@ function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest();
 }
 
-// Step 1: Redirect to Spotify login with PKCE and state
 app.get("/login", (req, res) => {
   const state = generateRandomString(16);
   const codeVerifier = generateRandomString(64);
@@ -58,7 +57,6 @@ app.get("/login", (req, res) => {
   );
 });
 
-// Step 2: Callback from Spotify with code, exchange for tokens
 app.get("/callback", async (req, res) => {
   const code = req.query.code || null;
   const state = req.query.state || null;
@@ -92,8 +90,8 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
-    // Redirect back to frontend with tokens in URL hash for client-side use
-    const redirectUrl = `${FRONTEND_URI}#access_token=${tokenData.access_token}&token_type=${tokenData.token_type}&expires_in=${tokenData.expires_in}&refresh_token=${tokenData.refresh_token}&state=${state}`;
+    // Redirect back to frontend with tokens in URL hash
+    const redirectUrl = `${redirect_uri}#access_token=${tokenData.access_token}&token_type=${tokenData.token_type}&expires_in=${tokenData.expires_in}&refresh_token=${tokenData.refresh_token}&state=${state}`;
 
     res.redirect(redirectUrl);
   } catch (e) {
@@ -101,7 +99,6 @@ app.get("/callback", async (req, res) => {
   }
 });
 
-// Step 3: Optional refresh token endpoint (for future expansions)
 app.get("/refresh_token", async (req, res) => {
   const refresh_token = req.query.refresh_token;
   if (!refresh_token) {
@@ -136,6 +133,7 @@ app.get("/refresh_token", async (req, res) => {
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`Saylist backend listening on port ${PORT}!`)
-);
+const PORT = process.env.PORT || 8888;
+app.listen(PORT, () => {
+  console.log(`Saylist backend listening on port ${PORT}!`);
+});
