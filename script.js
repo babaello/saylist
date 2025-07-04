@@ -110,12 +110,9 @@ function handleRedirect() {
   }
 }
 
-// Normalize titles for strict matching (remove punctuation, spaces, lowercase)
-function normalizeTitle(title) {
-  return title
-    .toLowerCase()
-    .replace(/[\W_]+/g, "") // remove non-alphanumeric characters
-    .trim();
+// Normalize string to letters only lowercase, no spaces or punctuation for strict matching
+function normalizeStrict(str) {
+  return str.toLowerCase().replace(/[^a-z]/g, "").trim();
 }
 
 async function searchTrack(word) {
@@ -127,7 +124,7 @@ async function searchTrack(word) {
   for (const q of queries) {
     const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
       q
-    )}&type=track&limit=50`; // max limit 50 for better matching
+    )}&type=track&limit=50`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -138,9 +135,11 @@ async function searchTrack(word) {
     }
     const data = await res.json();
     if (data.tracks && data.tracks.items.length > 0) {
-      const normQuery = normalizeTitle(q);
+      const normQuery = normalizeStrict(q);
+      console.log(`Searching for "${q}" normalized to "${normQuery}"`);
       let track = data.tracks.items.find((t) => {
-        const normTrackName = normalizeTitle(t.name);
+        const normTrackName = normalizeStrict(t.name);
+        console.log(`Comparing to track "${t.name}" normalized as "${normTrackName}"`);
         return normTrackName === normQuery;
       });
       if (track) {
