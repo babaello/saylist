@@ -1,333 +1,224 @@
-const BACKEND_URL = "https://saylist.onrender.com";
-const FRONTEND_URL = "https://babaello.github.io/saylist";
+// === CONFIGURATION ===
+// Put your backend URL here:
+const backendBaseUrl = "https://saylist.onrender.com";
 
-const loginBtn = document.getElementById("login-btn");
-const loginErrorDiv = document.getElementById("login-error");
-const mainUI = document.getElementById("main-ui");
-const sentenceInput = document.getElementById("sentence-input");
-const generateBtn = document.getElementById("generate-btn");
-const playlistInfo = document.getElementById("playlist-info");
-const tracksList = document.getElementById("tracks-list");
-const createPlaylistBtn = document.getElementById("create-playlist-btn");
-const copyLinkBtn = document.getElementById("copy-link-btn");
-const loadingDiv = document.getElementById("loading");
-const errorMsg = document.getElementById("error-msg");
-const darkmodeCheckbox = document.getElementById("darkmode-checkbox");
+// === DOM ELEMENTS ===
+const loginSection = document.getElementById("loginSection");
+const appSection = document.getElementById("appSection");
+const btnLogin = document.getElementById("btnLogin");
+const btnCreatePlaylist = document.getElementById("btnCreatePlaylist");
+const sentenceInput = document.getElementById("sentenceInput");
+const errorMsg = document.getElementById("errorMsg");
+const songsList = document.getElementById("songsList");
+const playlistLink = document.getElementById("playlistLink");
+const loadingSpinner = document.getElementById("loadingSpinner");
+const toggleThemeBtn = document.getElementById("toggleTheme");
 
 let accessToken = null;
-let refreshToken = null;
-let storedState = null;
-let currentPlaylistId = null;
+let userId = null;
 
-const synonymsMap = {
-  hello: ["hi", "hey"],
-  happy: ["joyful", "cheerful", "smile"],
-  sad: ["blue", "tear", "cry"],
-  love: ["heart", "romance", "affection"],
-  rickroll: ["rick astley", "never gonna give you up"],
-};
-
-function generateState() {
-  return Math.random().toString(36).substring(2, 15);
-}
-
-function saveState(state) {
-  sessionStorage.setItem("saylist_state", state);
-}
-
-function getStoredState() {
-  return sessionStorage.getItem("saylist_state");
-}
-
-function parseHashParams() {
-  const hash = window.location.hash.substring(1);
-  return hash.split("&").reduce((acc, pair) => {
-    const [key, value] = pair.split("=");
-    if (key && value) acc[key] = decodeURIComponent(value);
-    return acc;
-  }, {});
-}
-
-function showError(msg) {
-  errorMsg.textContent = msg;
-  errorMsg.style.display = msg ? "block" : "none";
-}
-
-function showLoginError(msg) {
-  loginErrorDiv.textContent = msg;
-  loginErrorDiv.style.display = msg ? "block" : "none";
-}
-
-function showLoading(show) {
-  loadingDiv.style.display = show ? "block" : "none";
-}
-
-function setButtonsDisabled(disabled) {
-  generateBtn.disabled = disabled;
-  createPlaylistBtn.disabled = disabled;
-}
-
-function clearPlaylistUI() {
-  tracksList.innerHTML = "";
-  playlistInfo.style.display = "none";
-  currentPlaylistId = null;
-}
-
-darkmodeCheckbox.addEventListener("change", () => {
-  if (darkmodeCheckbox.checked) {
+// === THEME TOGGLER ===
+function loadTheme() {
+  const savedTheme = localStorage.getItem("saylist-theme");
+  if (savedTheme === "dark") {
     document.body.classList.add("dark");
+    toggleThemeBtn.textContent = "☀️";
   } else {
     document.body.classList.remove("dark");
-  }
-});
-
-loginBtn.addEventListener("click", () => {
-  const state = generateState();
-  saveState(state);
-  window.location.href = `${BACKEND_URL}/login?state=${state}`;
-});
-
-function handleRedirect() {
-  const params = parseHashParams();
-  if (params.error) {
-    showLoginError(params.error_description || "Login error");
-    loginBtn.style.display = "none";
-    return;
-  }
-
-  if (params.access_token && params.state) {
-    storedState = getStoredState();
-    if (!storedState || storedState !== params.state) {
-      showLoginError("State mismatch error. Please login again.");
-      return;
-    }
-    accessToken = params.access_token;
-    refreshToken = params.refresh_token || null;
-    loginBtn.style.display = "none";
-    mainUI.style.display = "block";
-    showLoginError("");
-    clearPlaylistUI();
+    toggleThemeBtn.textContent = "🌙";
   }
 }
 
-// Strict normalization: lowercase, letters only (a-z)
-function normalizeStrict(str) {
-  return str.toLowerCase().replace(/[^a-z]/g, "").trim();
+toggleThemeBtn.onclick = () => {
+  document.body.classList.toggle("dark");
+  if (document.body.classList.contains("dark")) {
+    toggleThemeBtn.textContent = "☀️";
+    localStorage.setItem("saylist-theme", "dark");
+  } else {
+    toggleThemeBtn.textContent = "🌙";
+    localStorage.setItem("saylist-theme", "light");
+  }
+};
+
+// === OAUTH TOKEN PARSING & UI UPDATE ===
+
+function parseTokenFromHash() {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  return {
+    access_token: params.get("access_token"),
+    token_type: params.get("token_type"),
+    expires_in: params.get("expires_in"),
+    state: params.get("state"),
+  };
 }
 
-async function searchTrack(word) {
-  const queries = [word];
-  if (synonymsMap[word.toLowerCase()]) {
-    queries.push(...synonymsMap[word.toLowerCase()]);
+function clearUrlHash() {
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+function updateUI() {
+  if (accessToken) {
+    loginSection.hidden = true;
+    appSection.hidden = false;
+  } else {
+    loginSection.hidden = false;
+    appSection.hidden = true;
   }
+}
 
-  for (const q of queries) {
-    const url = `https://api.spotify.com/v1/search?q=track:"${encodeURIComponent(q)}"&type=track&limit=50`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+btnLogin.onclick = () => {
+  // Redirect user to backend login route for Spotify auth
+  window.location.href = `${backendBaseUrl}/login`;
+};
 
-    if (!res.ok) {
-      console.warn(`Spotify search failed for "${q}"`);
-      continue;
-    }
+// === SPOTIFY API FUNCTIONS ===
 
-    const data = await res.json();
-    if (data.tracks && data.tracks.items.length > 0) {
-      const normQuery = normalizeStrict(q);
-      for (const track of data.tracks.items) {
-        const normTrackName = normalizeStrict(track.name);
-        console.log(`Checking: query="${q}" normalized="${normQuery}" vs track="${track.name}" normalized="${normTrackName}"`);
-        if (normTrackName === normQuery) {
-          console.log(`Exact match found: "${track.name}"`);
-          return track;
-        }
-      }
-      console.log(`No exact match found for "${q}"`);
-    } else {
-      console.log(`No tracks found for "${q}"`);
+// Search exact track title (case insensitive)
+async function searchExactSong(word) {
+  const query = `"${word}"`; // Quotes to force phrase search (try to get exact)
+  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to search Spotify");
+
+  const data = await res.json();
+
+  // Find exact title match ignoring case
+  if (!data.tracks || !data.tracks.items) return null;
+  const lowerWord = word.toLowerCase();
+
+  for (const track of data.tracks.items) {
+    if (track.name.toLowerCase() === lowerWord) {
+      return track;
     }
   }
   return null;
 }
 
-async function generatePlaylist(sentence) {
-  showError("");
-  clearPlaylistUI();
-  showLoading(true);
-  setButtonsDisabled(true);
+// Get current user profile to get user ID
+async function fetchUserId() {
+  const res = await fetch("https://api.spotify.com/v1/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error("Failed to fetch user profile");
+  const data = await res.json();
+  return data.id;
+}
+
+// Create playlist for user
+async function createPlaylist(userId, name, description) {
+  const res = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      description,
+      public: false,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to create playlist");
+  return await res.json();
+}
+
+// Add tracks to playlist
+async function addTracksToPlaylist(playlistId, uris) {
+  const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ uris }),
+  });
+  if (!res.ok) throw new Error("Failed to add tracks to playlist");
+  return await res.json();
+}
+
+// === PLAYLIST CREATION LOGIC ===
+btnCreatePlaylist.onclick = async () => {
+  errorMsg.textContent = "";
+  songsList.innerHTML = "";
+  playlistLink.hidden = true;
+  loadingSpinner.hidden = false;
+
+  const sentence = sentenceInput.value.trim();
+  if (!sentence) {
+    errorMsg.textContent = "Please enter a sentence.";
+    loadingSpinner.hidden = true;
+    return;
+  }
 
   const words = sentence
     .split(/\s+/)
-    .map((w) => w.trim())
+    .map((w) => w.replace(/[^\w'-]/g, "")) // remove punctuation but keep apostrophes/hyphens
     .filter(Boolean);
 
   if (words.length === 0) {
-    showError("Please enter a valid sentence.");
-    showLoading(false);
-    setButtonsDisabled(false);
+    errorMsg.textContent = "No valid words found.";
+    loadingSpinner.hidden = true;
     return;
   }
-
-  const tracks = [];
-  for (const word of words) {
-    try {
-      const track = await searchTrack(word);
-      if (track) {
-        tracks.push(track);
-      }
-    } catch {
-      // Ignore per-word errors
-    }
-  }
-
-  showLoading(false);
-
-  if (tracks.length === 0) {
-    showError("No exact match songs found for your sentence.");
-    setButtonsDisabled(false);
-    return;
-  }
-
-  tracksList.innerHTML = "";
-  for (const track of tracks) {
-    const li = document.createElement("li");
-
-    const title = document.createElement("div");
-    title.textContent = track.name;
-    title.className = "track-title";
-
-    const artist = document.createElement("div");
-    artist.textContent = track.artists.map((a) => a.name).join(", ");
-    artist.className = "track-artist";
-
-    const info = document.createElement("div");
-    info.className = "track-info";
-    info.appendChild(title);
-    info.appendChild(artist);
-
-    const audio = document.createElement("audio");
-    audio.className = "audio-preview";
-    audio.controls = true;
-    audio.src = track.preview_url || "";
-    audio.title = "Audio preview";
-    if (!track.preview_url) {
-      audio.style.display = "none";
-    }
-
-    li.appendChild(info);
-    li.appendChild(audio);
-    tracksList.appendChild(li);
-  }
-
-  playlistInfo.style.display = "block";
-  setButtonsDisabled(false);
-  currentPlaylistId = null;
-}
-
-async function createPlaylistOnSpotify() {
-  if (!accessToken) {
-    showError("You must log in first.");
-    return;
-  }
-  if (!sentenceInput.value.trim()) {
-    showError("Enter a sentence first.");
-    return;
-  }
-
-  showLoading(true);
-  setButtonsDisabled(true);
-  showError("");
 
   try {
-    const userRes = await fetch("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!userRes.ok) throw new Error("Failed to get user profile.");
-    const userData = await userRes.json();
+    if (!userId) userId = await fetchUserId();
 
-    const playlistName = "Saylist: " + sentenceInput.value.substring(0, 30);
-    const createRes = await fetch(
-      `https://api.spotify.com/v1/users/${userData.id}/playlists`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: playlistName,
-          description:
-            "Playlist generated by Saylist (words from your sentence)",
-          public: false,
-        }),
-      }
-    );
-    if (!createRes.ok) throw new Error("Failed to create playlist.");
-    const playlistData = await createRes.json();
-
-    const words = sentenceInput.value
-      .split(/\s+/)
-      .map((w) => w.trim())
-      .filter(Boolean);
-    const trackUris = [];
-
+    const tracks = [];
     for (const word of words) {
-      const track = await searchTrack(word);
-      if (track) trackUris.push(track.uri);
+      const track = await searchExactSong(word);
+      if (track) {
+        tracks.push(track);
+        const li = document.createElement("li");
+        li.innerHTML = `<a href="${track.external_urls.spotify}" target="_blank" rel="noopener noreferrer" title="Artist(s): ${track.artists
+          .map((a) => a.name)
+          .join(", ")}">${track.name}</a>`;
+        songsList.appendChild(li);
+      } else {
+        const li = document.createElement("li");
+        li.textContent = `"${word}" - No exact match found.`;
+        li.classList.add("no-match");
+        songsList.appendChild(li);
+      }
     }
 
-    if (trackUris.length === 0) {
-      showError("No tracks found to add to playlist.");
-      showLoading(false);
-      setButtonsDisabled(false);
+    if (tracks.length === 0) {
+      errorMsg.textContent = "No songs matched exactly. Try different words!";
+      loadingSpinner.hidden = true;
       return;
     }
 
-    const addRes = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlistData.id}/tracks`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uris: trackUris }),
-      }
-    );
+    const playlistName = `Saylist: ${sentence}`;
+    const playlistDescription =
+      "Playlist created by Saylist — each song title exactly matches a word from your sentence.";
 
-    if (!addRes.ok) throw new Error("Failed to add tracks to playlist.");
+    const playlist = await createPlaylist(userId, playlistName, playlistDescription);
+    await addTracksToPlaylist(playlist.id, tracks.map((t) => t.uri));
 
-    currentPlaylistId = playlistData.id;
-
-    showError("");
-    alert(
-      `Playlist created! View it on Spotify:\nhttps://open.spotify.com/playlist/${currentPlaylistId}`
-    );
+    playlistLink.href = playlist.external_urls.spotify;
+    playlistLink.textContent = `🎧 Open your playlist: ${playlist.name}`;
+    playlistLink.hidden = false;
   } catch (err) {
-    showError(err.message || "Error creating playlist.");
+    errorMsg.textContent = err.message || "An unknown error occurred.";
   } finally {
-    showLoading(false);
-    setButtonsDisabled(false);
+    loadingSpinner.hidden = true;
   }
-}
-
-copyLinkBtn.addEventListener("click", () => {
-  if (currentPlaylistId) {
-    const url = `https://open.spotify.com/playlist/${currentPlaylistId}`;
-    navigator.clipboard.writeText(url).then(() => {
-      alert("Playlist link copied to clipboard!");
-    });
-  } else {
-    alert("No playlist to copy yet.");
-  }
-});
-
-generateBtn.addEventListener("click", () => {
-  generatePlaylist(sentenceInput.value);
-});
-createPlaylistBtn.addEventListener("click", createPlaylistOnSpotify);
-
-window.onload = () => {
-  handleRedirect();
 };
+
+// === ON PAGE LOAD ===
+window.addEventListener("load", () => {
+  const tokens = parseTokenFromHash();
+  if (tokens && tokens.access_token) {
+    accessToken = tokens.access_token;
+    clearUrlHash();
+  }
+  updateUI();
+  loadTheme();
+});
