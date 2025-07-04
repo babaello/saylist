@@ -6,14 +6,14 @@ import crypto from "crypto";
 const app = express();
 app.use(cors());
 
-// Your Spotify credentials
+// Spotify Credentials - Your real ones here
 const CLIENT_ID = "7f69356de8634da0b43c4c650b8eb3fc";
 const CLIENT_SECRET = "9e9b04ffc205438e8f3708f12604d6ac";
 
-// THIS MUST EXACTLY MATCH your Spotify app redirect URI and your frontend URL
+// Must exactly match your Spotify Dashboard Redirect URI & frontend URL
 const redirect_uri = "https://babaello.github.io/saylist/";
 
-// For demo: store state and codeVerifier in memory (use a DB in production)
+// In-memory store for PKCE code_verifier per state (demo only, use DB in prod)
 const stateVerifiers = new Map();
 
 function generateRandomString(length) {
@@ -32,6 +32,7 @@ function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest();
 }
 
+// Login route - starts Spotify OAuth with PKCE & state
 app.get("/login", (req, res) => {
   const state = generateRandomString(16);
   const codeVerifier = generateRandomString(64);
@@ -52,11 +53,12 @@ app.get("/login", (req, res) => {
     code_challenge: codeChallenge,
   });
 
-  res.redirect(
-    `https://accounts.spotify.com/authorize?${authQueryParams.toString()}`
-  );
+  const spotifyAuthUrl = `https://accounts.spotify.com/authorize?${authQueryParams.toString()}`;
+
+  res.redirect(spotifyAuthUrl);
 });
 
+// Callback route - exchanges code for tokens & redirects back with tokens in hash
 app.get("/callback", async (req, res) => {
   const code = req.query.code || null;
   const state = req.query.state || null;
@@ -65,7 +67,6 @@ app.get("/callback", async (req, res) => {
   if (!state || !storedVerifier) {
     return res.status(400).send("State mismatch or missing.");
   }
-
   stateVerifiers.delete(state);
 
   const body = new URLSearchParams({
@@ -90,7 +91,7 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
-    // Redirect back to frontend with tokens in URL hash
+    // Redirect with tokens in URL hash
     const redirectUrl = `${redirect_uri}#access_token=${tokenData.access_token}&token_type=${tokenData.token_type}&expires_in=${tokenData.expires_in}&refresh_token=${tokenData.refresh_token}&state=${state}`;
 
     res.redirect(redirectUrl);
@@ -99,6 +100,7 @@ app.get("/callback", async (req, res) => {
   }
 });
 
+// Refresh token route (optional)
 app.get("/refresh_token", async (req, res) => {
   const refresh_token = req.query.refresh_token;
   if (!refresh_token) {
