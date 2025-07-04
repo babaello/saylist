@@ -3,47 +3,633 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Saylist — Sentence to Spotify Playlist</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<title>Saylist - Sentence to Spotify Playlist</title>
+<style>
+  /* --- Reset & Base --- */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+    background: #f0f2f5;
+    color: #222;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark {
+    background: #121212;
+    color: #eee;
+  }
+  header {
+    padding: 1rem;
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-top: 1rem;
+    user-select: none;
+  }
+  main {
+    max-width: 640px;
+    width: 90vw;
+    padding: 1rem 1.5rem 2rem 1.5rem;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    margin: 1.5rem 0 3rem 0;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark main {
+    background: #1e1e1e;
+  }
+
+  label.switch {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+  }
+  label.switch input {
+    opacity: 0;
+    width: 0; height: 0;
+  }
+  label.switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    border-radius: 28px;
+    transition: 0.4s;
+  }
+  label.switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.4s;
+  }
+  label.switch input:checked + .slider {
+    background-color: #2196F3;
+  }
+  label.switch input:checked + .slider:before {
+    transform: translateX(24px);
+  }
+
+  #login-btn {
+    background-color: #1DB954;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 30px;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background-color 0.25s ease;
+    display: block;
+    margin: 2rem auto;
+    box-shadow: 0 6px 12px rgba(29, 185, 84, 0.5);
+  }
+  #login-btn:hover {
+    background-color: #17a64a;
+  }
+
+  #login-error {
+    color: #cc0000;
+    text-align: center;
+    font-weight: 600;
+    margin: 0.5rem 0 1rem 0;
+  }
+
+  #main-ui {
+    display: none;
+  }
+
+  input#sentence-input {
+    width: 100%;
+    font-size: 1.2rem;
+    padding: 0.9rem 1rem;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    transition: border-color 0.3s;
+  }
+  input#sentence-input:focus {
+    outline: none;
+    border-color: #1DB954;
+    box-shadow: 0 0 8px rgba(29, 185, 84, 0.5);
+  }
+
+  button {
+    margin-top: 1rem;
+    padding: 1rem 1.8rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    border-radius: 28px;
+    border: none;
+    cursor: pointer;
+    background-color: #1DB954;
+    color: white;
+    box-shadow: 0 6px 12px rgba(29, 185, 84, 0.5);
+    transition: background-color 0.25s ease;
+  }
+  button:disabled {
+    background-color: #aaa;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  button:hover:not(:disabled) {
+    background-color: #17a64a;
+  }
+
+  #playlist-info {
+    margin-top: 1.5rem;
+    display: none;
+  }
+
+  ul#tracks-list {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 1rem;
+    max-height: 350px;
+    overflow-y: auto;
+  }
+
+  ul#tracks-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #ddd;
+    padding: 0.6rem 0;
+    transition: background-color 0.25s;
+  }
+  body.dark ul#tracks-list li {
+    border-color: #444;
+  }
+  ul#tracks-list li:hover {
+    background-color: #f7f7f7;
+  }
+  body.dark ul#tracks-list li:hover {
+    background-color: #2a2a2a;
+  }
+
+  .track-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .track-title {
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-artist {
+    font-size: 0.85rem;
+    color: #555;
+  }
+  body.dark .track-artist {
+    color: #bbb;
+  }
+
+  audio.audio-preview {
+    flex-shrink: 0;
+    margin-left: 12px;
+    width: 130px;
+    outline-offset: 2px;
+    border-radius: 6px;
+    box-shadow: 0 0 6px rgba(29,185,84,0.3);
+  }
+
+  #error-msg {
+    margin-top: 1rem;
+    color: #cc0000;
+    font-weight: 600;
+    min-height: 1.2em;
+    text-align: center;
+  }
+
+  #loading {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: #1DB954;
+    text-align: center;
+    font-size: 1.15rem;
+    display: none;
+  }
+
+  @media (max-width: 480px) {
+    button, #login-btn {
+      width: 100%;
+      font-size: 1.1rem;
+    }
+    audio.audio-preview {
+      width: 100px;
+    }
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Saylist</h1>
-    <p>Create a Spotify playlist from your sentence — one exact song per word</p>
-    <label class="darkmode-label">
-      <input type="checkbox" id="darkmode-checkbox" />
-      Dark Mode
-    </label>
-  </header>
+<header>Saylist</header>
 
-  <main>
-    <section id="login-section">
-      <button id="login-btn" class="btn">Log in with Spotify</button>
-      <div id="login-error" class="error-msg"></div>
-    </section>
+<label class="switch" title="Toggle Dark Mode">
+  <input type="checkbox" id="darkmode-checkbox" aria-label="Toggle Dark Mode" />
+  <span class="slider"></span>
+</label>
 
-    <section id="main-ui" style="display:none;">
-      <textarea id="sentence-input" rows="3" placeholder="Type your sentence here..."></textarea>
-      <div class="buttons-row">
-        <button id="generate-btn" class="btn">Generate Playlist Preview</button>
-        <button id="create-playlist-btn" class="btn">Create Playlist on Spotify</button>
-        <button id="copy-link-btn" class="btn">Copy Playlist Link</button>
-      </div>
-      <div id="loading" class="loading" style="display:none;">Loading…</div>
-      <div id="error-msg" class="error-msg"></div>
+<button id="login-btn" aria-label="Log in with Spotify">Log in with Spotify</button>
+<div id="login-error" role="alert" aria-live="assertive"></div>
 
-      <div id="playlist-info" style="display:none;">
-        <h2>Playlist Preview</h2>
-        <ul id="tracks-list"></ul>
-      </div>
-    </section>
-  </main>
+<div id="main-ui" role="main" aria-live="polite" aria-atomic="true">
+  <label for="sentence-input" style="font-weight:600; font-size:1.1rem;">Enter a sentence:</label>
+  <input id="sentence-input" type="text" placeholder="Type your sentence here..." aria-required="true" aria-describedby="input-help" />
+  <div id="input-help" style="font-size:0.85rem; color:#666;">Each word will be matched exactly to a song title.</div>
+  <button id="generate-btn" aria-label="Generate playlist">Generate Playlist</button>
 
-  <footer>
-    <small>© 2025 Saylist — Built with ❤️ using Spotify API</small>
-  </footer>
+  <div id="loading" role="status" aria-live="polite">Loading songs… please wait.</div>
+  <div id="error-msg" role="alert" aria-live="assertive"></div>
 
-  <script src="script.js" type="module"></script>
+  <section id="playlist-info" aria-label="Generated playlist">
+    <ul id="tracks-list" tabindex="0"></ul>
+    <button id="create-playlist-btn" aria-label="Create playlist on Spotify">Create Playlist on Spotify</button>
+    <button id="copy-link-btn" aria-label="Copy Spotify playlist link to clipboard">Copy Playlist Link</button>
+  </section>
+</div>
+
+<script>
+(() => {
+  const BACKEND_URL = "https://saylist.onrender.com";
+  const FRONTEND_URL = "https://babaello.github.io/saylist";
+
+  const loginBtn = document.getElementById("login-btn");
+  const loginErrorDiv = document.getElementById("login-error");
+  const mainUI = document.getElementById("main-ui");
+  const sentenceInput = document.getElementById("sentence-input");
+  const generateBtn = document.getElementById("generate-btn");
+  const playlistInfo = document.getElementById("playlist-info");
+  const tracksList = document.getElementById("tracks-list");
+  const createPlaylistBtn = document.getElementById("create-playlist-btn");
+  const copyLinkBtn = document.getElementById("copy-link-btn");
+  const loadingDiv = document.getElementById("loading");
+  const errorMsg = document.getElementById("error-msg");
+  const darkmodeCheckbox = document.getElementById("darkmode-checkbox");
+
+  let accessToken = null;
+  let currentPlaylistId = null;
+
+  const synonymsMap = {
+    hello: ["hi", "hey"],
+    happy: ["joyful", "cheerful", "smile"],
+    sad: ["blue", "tear", "cry"],
+    love: ["heart", "romance", "affection"],
+    rickroll: ["rick astley", "never gonna give you up"],
+  };
+
+  function generateState() {
+    return Math.random().toString(36).substring(2, 15);
+  }
+  function saveState(state) {
+    sessionStorage.setItem("saylist_state", state);
+  }
+  function getStoredState() {
+    return sessionStorage.getItem("saylist_state");
+  }
+
+  function parseHashParams() {
+    const hash = window.location.hash.substring(1);
+    return hash.split("&").reduce((acc, pair) => {
+      const [key, value] = pair.split("=");
+      if (key && value) acc[key] = decodeURIComponent(value);
+      return acc;
+    }, {});
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.style.display = msg ? "block" : "none";
+  }
+
+  function showLoginError(msg) {
+    loginErrorDiv.textContent = msg;
+    loginErrorDiv.style.display = msg ? "block" : "none";
+  }
+
+  function showLoading(show) {
+    loadingDiv.style.display = show ? "block" : "none";
+  }
+
+  function setButtonsDisabled(disabled) {
+    generateBtn.disabled = disabled;
+    createPlaylistBtn.disabled = disabled;
+    copyLinkBtn.disabled = disabled;
+  }
+
+  function clearPlaylistUI() {
+    tracksList.innerHTML = "";
+    playlistInfo.style.display = "none";
+    currentPlaylistId = null;
+  }
+
+  darkmodeCheckbox.addEventListener("change", () => {
+    if (darkmodeCheckbox.checked) {
+      document.body.classList.add("dark");
+    } else {
+      document.body.classList.remove("dark");
+    }
+  });
+
+  loginBtn.addEventListener("click", () => {
+    const state = generateState();
+    saveState(state);
+    window.location.href = `${BACKEND_URL}/login?state=${state}`;
+  });
+
+  function handleRedirect() {
+    const params = parseHashParams();
+    if (params.error) {
+      showLoginError(params.error_description || "Login error");
+      loginBtn.style.display = "none";
+      return;
+    }
+    if (params.access_token && params.state) {
+      const storedState = getStoredState();
+      if (!storedState || storedState !== params.state) {
+        showLoginError("State mismatch error. Please login again.");
+        return;
+      }
+      accessToken = params.access_token;
+      loginBtn.style.display = "none";
+      mainUI.style.display = "block";
+      showLoginError("");
+      clearPlaylistUI();
+      setButtonsDisabled(false);
+    }
+  }
+
+  function normalizeStrict(str) {
+    return str.toLowerCase().replace(/[^a-z]/g, "").trim();
+  }
+
+  async function searchTrack(word) {
+    const queries = [word];
+    if (synonymsMap[word.toLowerCase()]) {
+      queries.push(...synonymsMap[word.toLowerCase()]);
+    }
+    for (const q of queries) {
+      const url = `https://api.spotify.com/v1/search?q=track:"${encodeURIComponent(q)}"&type=track&limit=50`;
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          console.warn(`Spotify search failed for "${q}": ${res.status}`);
+          continue;
+        }
+        const data = await res.json();
+        if (data.tracks && data.tracks.items.length > 0) {
+          const normQuery = normalizeStrict(q);
+          for (const track of data.tracks.items) {
+            const normTrackName = normalizeStrict(track.name);
+            console.log(`Checking: query="${q}" normalized="${normQuery}" vs track="${track.name}" normalized="${normTrackName}"`);
+            if (normTrackName === normQuery) {
+              console.log(`Exact match found: "${track.name}"`);
+              return track;
+            }
+          }
+          console.log(`No exact match found for "${q}"`);
+        } else {
+          console.log(`No tracks found for "${q}"`);
+        }
+      } catch (e) {
+        console.error("Search error:", e);
+      }
+    }
+    return null;
+  }
+
+  async function generatePlaylist(sentence) {
+    showError("");
+    clearPlaylistUI();
+    showLoading(true);
+    setButtonsDisabled(true);
+
+    const words = sentence
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter(Boolean);
+
+    if (words.length === 0) {
+      showError("Please enter a valid sentence.");
+      showLoading(false);
+      setButtonsDisabled(false);
+      return;
+    }
+
+    const tracks = [];
+    for (const word of words) {
+      try {
+        const track = await searchTrack(word);
+        if (track) tracks.push(track);
+      } catch {
+        // ignore individual word errors
+      }
+    }
+
+    showLoading(false);
+
+    if (tracks.length === 0) {
+      showError("No exact match songs found for your sentence.");
+      setButtonsDisabled(false);
+      return;
+    }
+
+    tracksList.innerHTML = "";
+    for (const track of tracks) {
+      const li = document.createElement("li");
+
+      const title = document.createElement("div");
+      title.textContent = track.name;
+      title.className = "track-title";
+
+      const artist = document.createElement("div");
+      artist.textContent = track.artists.map((a) => a.name).join(", ");
+      artist.className = "track-artist";
+
+      const info = document.createElement("div");
+      info.className = "track-info";
+      info.appendChild(title);
+      info.appendChild(artist);
+
+      const audio = document.createElement("audio");
+      audio.className = "audio-preview";
+      audio.controls = true;
+      audio.src = track.preview_url || "";
+      audio.title = "Audio preview";
+      if (!track.preview_url) {
+        audio.style.display = "none";
+      }
+
+      li.appendChild(info);
+      li.appendChild(audio);
+      tracksList.appendChild(li);
+    }
+
+    playlistInfo.style.display = "block";
+    setButtonsDisabled(false);
+    currentPlaylistId = null;
+  }
+
+  async function createPlaylistOnSpotify() {
+    if (!accessToken) {
+      showError("You must log in first.");
+      return;
+    }
+    if (!sentenceInput.value.trim()) {
+      showError("Enter a sentence first.");
+      return;
+    }
+
+    showLoading(true);
+    setButtonsDisabled(true);
+    showError("");
+
+    try {
+      const userRes = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!userRes.ok) throw new Error("Failed to get user profile.");
+      const userData = await userRes.json();
+
+      const playlistName = "Saylist: " + sentenceInput.value.substring(0, 30);
+      const createRes = await fetch(
+        `https://api.spotify.com/v1/users/${userData.id}/playlists`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: playlistName,
+            description:
+              "Playlist generated by Saylist (words from your sentence)",
+            public: false,
+          }),
+        }
+      );
+      if (!createRes.ok) throw new Error("Failed to create playlist.");
+      const playlistData = await createRes.json();
+
+      const words = sentenceInput.value
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter(Boolean);
+      const trackUris = [];
+
+      for (const word of words) {
+        const track = await searchTrack(word);
+        if (track) trackUris.push(track.uri);
+      }
+
+      if (trackUris.length === 0) {
+        showError("No tracks found to add to playlist.");
+        showLoading(false);
+        setButtonsDisabled(false);
+        return;
+      }
+
+      const addRes = await fetch(
+        `https://api.spotify.com/v1/playlists/${playlistData.id}/tracks`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            uris: trackUris,
+          }),
+        }
+      );
+      if (!addRes.ok) throw new Error("Failed to add tracks to playlist.");
+
+      currentPlaylistId = playlistData.id;
+
+      alert(
+        `Playlist created!\n\nOpen it here:\nhttps://open.spotify.com/playlist/${currentPlaylistId}`
+      );
+    } catch (e) {
+      showError("Error creating playlist: " + e.message);
+      console.error(e);
+    } finally {
+      showLoading(false);
+      setButtonsDisabled(false);
+    }
+  }
+
+  copyLinkBtn.addEventListener("click", () => {
+    if (!currentPlaylistId) {
+      alert("No playlist created yet!");
+      return;
+    }
+    const url = `https://open.spotify.com/playlist/${currentPlaylistId}`;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => alert("Playlist link copied to clipboard!"))
+      .catch(() => alert("Failed to copy playlist link."));
+  });
+
+  generateBtn.addEventListener("click", () => {
+    generatePlaylist(sentenceInput.value);
+  });
+
+  createPlaylistBtn.addEventListener("click", createPlaylistOnSpotify);
+
+  // On page load, parse URL hash to get token if any
+  window.addEventListener("load", () => {
+    // Dark mode auto remember
+    if (
+      localStorage.getItem("saylist_darkmode") === "true" ||
+      (window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
+      darkmodeCheckbox.checked = true;
+      document.body.classList.add("dark");
+    }
+
+    darkmodeCheckbox.addEventListener("change", () => {
+      localStorage.setItem("saylist_darkmode", darkmodeCheckbox.checked);
+    });
+
+    // Check for access token in URL hash
+    const params = parseHashParams();
+    if (params.access_token && params.state) {
+      const storedState = getStoredState();
+      if (!storedState || storedState !== params.state) {
+        showLoginError("State mismatch error. Please login again.");
+        return;
+      }
+      accessToken = params.access_token;
+      loginBtn.style.display = "none";
+      mainUI.style.display = "block";
+      showLoginError("");
+      clearPlaylistUI();
+      setButtonsDisabled(false);
+
+      // Clean URL hash to avoid confusion on reload
+      history.replaceState(null, "", FRONTEND_URL);
+    } else {
+      loginBtn.style.display = "block";
+      mainUI.style.display = "none";
+    }
+  });
+})();
+</script>
 </body>
 </html>
