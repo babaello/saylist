@@ -110,45 +110,42 @@ function handleRedirect() {
   }
 }
 
-// Normalize string to letters only lowercase, no spaces or punctuation for strict matching
+// Strict normalization: lowercase, letters only (a-z)
 function normalizeStrict(str) {
   return str.toLowerCase().replace(/[^a-z]/g, "").trim();
 }
 
 async function searchTrack(word) {
-  let queries = [word];
+  const queries = [word];
   if (synonymsMap[word.toLowerCase()]) {
-    queries = [...queries, ...synonymsMap[word.toLowerCase()]];
+    queries.push(...synonymsMap[word.toLowerCase()]);
   }
 
   for (const q of queries) {
-    // Use Spotify advanced search syntax: track:"word" for exact title search
     const url = `https://api.spotify.com/v1/search?q=track:"${encodeURIComponent(q)}"&type=track&limit=50`;
-
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+
     if (!res.ok) {
       console.warn(`Spotify search failed for "${q}"`);
       continue;
     }
+
     const data = await res.json();
     if (data.tracks && data.tracks.items.length > 0) {
       const normQuery = normalizeStrict(q);
-      console.log(`Searching for "${q}" normalized to "${normQuery}"`);
-      let track = data.tracks.items.find((t) => {
-        const normTrackName = normalizeStrict(t.name);
-        console.log(`Comparing to track "${t.name}" normalized as "${normTrackName}"`);
-        return normTrackName === normQuery;
-      });
-      if (track) {
-        console.log(`Exact strict match found for "${q}": "${track.name}"`);
-        return track;
-      } else {
-        console.log(`No strict exact match for "${q}".`);
+      for (const track of data.tracks.items) {
+        const normTrackName = normalizeStrict(track.name);
+        console.log(`Checking: query="${q}" normalized="${normQuery}" vs track="${track.name}" normalized="${normTrackName}"`);
+        if (normTrackName === normQuery) {
+          console.log(`Exact match found: "${track.name}"`);
+          return track;
+        }
       }
+      console.log(`No exact match found for "${q}"`);
     } else {
-      console.log(`No tracks returned for "${q}".`);
+      console.log(`No tracks found for "${q}"`);
     }
   }
   return null;
