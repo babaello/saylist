@@ -1,7 +1,7 @@
 {
   "name": "saylist-backend",
   "version": "1.0.0",
-  "description": "Backend for Saylist Spotify OAuth",
+  "description": "Saylist Spotify OAuth Backend",
   "type": "module",
   "main": "server.js",
   "scripts": {
