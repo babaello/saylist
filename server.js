@@ -5,34 +5,25 @@ import querystring from "querystring";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
 const PORT = process.env.PORT || 8888;
 
-// Put your Spotify credentials here (or use env vars)
 const CLIENT_ID = "7f69356de8634da0b43c4c650b8eb3fc";
 const CLIENT_SECRET = "9e9b04ffc205438e8f3708f12604d6ac";
 const REDIRECT_URI = "https://saylist.onrender.com/callback";
 
-// In-memory token store (for demo purposes only)
-const stateKey = "saylist_auth_state";
-
-function generateRandomString(length) {
-  let text = "";
-  const possible =
+function generateRandomString(length = 16) {
+  const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
+  let result = "";
   for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return text;
+  return result;
 }
 
-// ========== ROUTES ==========
-
-// Step 1: Login endpoint - redirect user to Spotify auth page
 app.get("/login", (req, res) => {
-  const state = generateRandomString(16);
+  const state = generateRandomString();
   const scope =
     "playlist-modify-private playlist-modify-public user-read-private";
 
@@ -44,30 +35,21 @@ app.get("/login", (req, res) => {
     state,
   });
 
-  // Set state cookie for validation on callback
-  res.cookie(stateKey, state);
-
   res.redirect(`https://accounts.spotify.com/authorize?${params}`);
 });
 
-// Step 2: Callback endpoint - Spotify redirects here with code
 app.get("/callback", async (req, res) => {
   const code = req.query.code || null;
-  const state = req.query.state || null;
-  const storedState = req.cookies ? req.cookies[stateKey] : null;
+  const returnedState = req.query.state || null;
 
-  if (state === null || state !== storedState) {
+  if (!code || !returnedState) {
     return res.redirect(
-      "/#error=state_mismatch&error_description=State mismatch"
+      "/#error=missing_parameters&error_description=Missing code or state"
     );
   }
 
-  // Clear state cookie
-  res.clearCookie(stateKey);
-
   try {
-    // Exchange code for access token & refresh token
-    const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
+    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
         Authorization:
@@ -82,68 +64,30 @@ app.get("/callback", async (req, res) => {
       }),
     });
 
-    if (!tokenResponse.ok) {
-      const errData = await tokenResponse.json();
+    if (!tokenRes.ok) {
+      const err = await tokenRes.json();
       return res.redirect(
-        `/#error=invalid_token&error_description=${encodeURIComponent(
-          errData.error_description || "Failed to get token"
-        )}`
+        "/#error=invalid_token&error_description=" +
+          encodeURIComponent(err.error_description || "Failed to get token")
       );
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenRes.json();
 
-    // Redirect to frontend with tokens in URL fragment (not query)
-    const redirectUrl = `https://babaello.github.io/saylist/#access_token=${tokenData.access_token}&refresh_token=${tokenData.refresh_token}`;
+    // Pass tokens and state to frontend in URL hash
+    const frontendUrl = `https://babaello.github.io/saylist/#access_token=${tokenData.access_token}&refresh_token=${tokenData.refresh_token}&state=${returnedState}`;
 
-    res.redirect(redirectUrl);
-  } catch (err) {
-    console.error(err);
-    res.redirect("/#error=server_error");
+    res.redirect(frontendUrl);
+  } catch (error) {
+    console.error(error);
+    res.redirect("/#error=server_error&error_description=Server error");
   }
 });
 
-// Optional: Refresh token endpoint (not used in frontend currently)
-app.post("/refresh_token", async (req, res) => {
-  const refresh_token = req.body.refresh_token;
-  if (!refresh_token)
-    return res.status(400).json({ error: "Missing refresh_token" });
-
-  try {
-    const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        Authorization:
-          "Basic " +
-          Buffer.from(CLIENT_ID + ":" + CLIENT_SECRET).toString("base64"),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: querystring.stringify({
-        grant_type: "refresh_token",
-        refresh_token,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errData = await tokenResponse.json();
-      return res.status(400).json(errData);
-    }
-
-    const tokenData = await tokenResponse.json();
-    res.json(tokenData);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Health check
 app.get("/", (req, res) => {
-  res.send("Saylist backend is running.");
+  res.send("Saylist backend is up and running.");
 });
 
 app.listen(PORT, () => {
   console.log(`Saylist backend listening on port ${PORT}`);
 });
-
-import cookieParser from "cookie-parser";
-app.use(cookieParser());
