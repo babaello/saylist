@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saylist 🎵 — Sentence to Spotify Playlist</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container" role="main">
+    <h1>🎶 Saylist</h1>
+    <p>Enter a sentence and get a custom Spotify playlist — one song per word.</p>
+
+    <button id="loginBtn" class="btn primary">Log in with Spotify</button>
+
+    <section id="app" hidden>
+      <label for="sentenceInput" class="sr-only">Enter your sentence</label>
+      <textarea id="sentenceInput" rows="3" placeholder="Type your sentence here..." aria-describedby="helpText" autofocus></textarea>
+      <div id="helpText" class="help-text">Words are matched to song titles.</div>
+
+      <button id="generateBtn" class="btn" aria-live="polite" aria-busy="false">Generate Playlist</button>
+
+      <p id="status" role="alert" aria-live="assertive"></p>
+
+      <section id="playlistSection" hidden>
+        <h2>Your Playlist</h2>
+        <div id="spotifyPlayer"></div>
+        <a id="playlistLink" href="#" target="_blank" rel="noopener noreferrer" class="btn link-btn">Open Playlist in Spotify</a>
+      </section>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
