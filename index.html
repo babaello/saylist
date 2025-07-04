@@ -2,26 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Saylist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saylist 🎧</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="https://img.icons8.com/color/48/spotify--v1.png"/>
 </head>
 <body>
+  <div class="theme-toggle">
+    <button id="toggle-theme">🌙</button>
+  </div>
   <div class="container">
-    <h1>🎵 Saylist</h1>
-    <p class="subtitle">Turn a sentence into a Spotify playlist — each word becomes a song title.</p>
-    
-    <button id="loginBtn">Log in with Spotify</button>
-    <p id="status"></p>
+    <h1 class="title">Saylist 🎶</h1>
+    <p class="tagline">Turn your sentence into a Spotify playlist</p>
 
-    <form id="sentenceForm" style="display: none;">
-      <input type="text" id="sentence" placeholder="Type your sentence..." required />
-      <button type="submit">Generate Playlist</button>
-    </form>
+    <textarea id="sentence-input" placeholder="Type a sentence like: I'm feeling golden today!"></textarea>
+    <div class="controls">
+      <button id="generate">🎵 Generate Playlist</button>
+      <button id="login">🔑 Log in with Spotify</button>
+    </div>
 
-    <div id="result"></div>
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <p>Finding songs for your words...</p>
+    </div>
+
+    <div id="results" class="hidden">
+      <h2>Your Playlist: <span id="playlist-name"></span></h2>
+      <div id="track-list"></div>
+      <button id="create-playlist">📀 Create on Spotify</button>
+      <div id="playlist-preview" class="hidden"></div>
+      <button id="copy-link" class="hidden">🔗 Copy Playlist Link</button>
+    </div>
+
+    <div id="easter-egg" class="hidden">
+      <img src="https://media.giphy.com/media/Vuw9m5wXviFIQ/giphy.gif" alt="Rickroll" />
+      <p>You just got rickrolled.</p>
+    </div>
   </div>
 
-  <script src="script.js?v=2"></script>
+  <footer>
+    <p>Made with ❤️ by Saylist Team</p>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
