@@ -33,17 +33,14 @@ function generateState() {
   return Math.random().toString(36).substring(2, 15);
 }
 
-// Save state to sessionStorage before login
 function saveState(state) {
   sessionStorage.setItem("saylist_state", state);
 }
 
-// Get stored state from sessionStorage
 function getStoredState() {
   return sessionStorage.getItem("saylist_state");
 }
 
-// Parse URL hash parameters
 function parseHashParams() {
   const hash = window.location.hash.substring(1);
   return hash.split("&").reduce((acc, pair) => {
@@ -53,37 +50,31 @@ function parseHashParams() {
   }, {});
 }
 
-// Show or hide error
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.style.display = msg ? "block" : "none";
 }
 
-// Show or hide login error
 function showLoginError(msg) {
   loginErrorDiv.textContent = msg;
   loginErrorDiv.style.display = msg ? "block" : "none";
 }
 
-// Show loading spinner
 function showLoading(show) {
   loadingDiv.style.display = show ? "block" : "none";
 }
 
-// Enable or disable buttons
 function setButtonsDisabled(disabled) {
   generateBtn.disabled = disabled;
   createPlaylistBtn.disabled = disabled;
 }
 
-// Clear playlist UI
 function clearPlaylistUI() {
   tracksList.innerHTML = "";
   playlistInfo.style.display = "none";
   currentPlaylistId = null;
 }
 
-// Dark mode toggle handling
 darkmodeCheckbox.addEventListener("change", () => {
   if (darkmodeCheckbox.checked) {
     document.body.classList.add("dark");
@@ -92,14 +83,12 @@ darkmodeCheckbox.addEventListener("change", () => {
   }
 });
 
-// Login button click — redirect to backend login
 loginBtn.addEventListener("click", () => {
   const state = generateState();
   saveState(state);
   window.location.href = `${BACKEND_URL}/login?state=${state}`;
 });
 
-// After redirect from backend, check tokens and state
 function handleRedirect() {
   const params = parseHashParams();
   if (params.error) {
@@ -129,7 +118,7 @@ function getSpotifySearchURL(query) {
   )}&type=track&limit=5`;
 }
 
-// Search Spotify for a word, fallback on synonyms if no results
+// Updated searchTrack: ONLY exact match (case-insensitive)
 async function searchTrack(word) {
   let queries = [word];
   if (synonymsMap[word.toLowerCase()]) {
@@ -144,18 +133,16 @@ async function searchTrack(word) {
     if (!res.ok) continue;
     const data = await res.json();
     if (data.tracks && data.tracks.items.length > 0) {
-      // Find track with title containing the word (case-insensitive) if possible
-      let track = data.tracks.items.find((t) =>
-        t.name.toLowerCase().includes(word.toLowerCase())
+      // Exact match only:
+      let track = data.tracks.items.find(
+        (t) => t.name.toLowerCase() === q.toLowerCase()
       );
-      if (!track) track = data.tracks.items[0];
-      return track;
+      if (track) return track;
     }
   }
   return null;
 }
 
-// Generate playlist tracks for sentence words
 async function generatePlaylist(sentence) {
   showError("");
   clearPlaylistUI();
@@ -182,14 +169,14 @@ async function generatePlaylist(sentence) {
         tracks.push(track);
       }
     } catch {
-      // Ignore search errors per word
+      // Ignore per-word search errors
     }
   }
 
   showLoading(false);
 
   if (tracks.length === 0) {
-    showError("No matching songs found for your sentence.");
+    showError("No exact match songs found for your sentence.");
     setButtonsDisabled(false);
     return;
   }
@@ -230,7 +217,6 @@ async function generatePlaylist(sentence) {
   currentPlaylistId = null;
 }
 
-// Create playlist on Spotify account
 async function createPlaylistOnSpotify() {
   if (!accessToken) {
     showError("You must log in first.");
@@ -246,14 +232,12 @@ async function createPlaylistOnSpotify() {
   showError("");
 
   try {
-    // Get user profile for user ID
     const userRes = await fetch("https://api.spotify.com/v1/me", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!userRes.ok) throw new Error("Failed to get user profile.");
     const userData = await userRes.json();
 
-    // Create new playlist
     const playlistName = "Saylist: " + sentenceInput.value.substring(0, 30);
     const createRes = await fetch(
       `https://api.spotify.com/v1/users/${userData.id}/playlists`,
@@ -274,7 +258,6 @@ async function createPlaylistOnSpotify() {
     if (!createRes.ok) throw new Error("Failed to create playlist.");
     const playlistData = await createRes.json();
 
-    // Search tracks again to get their URIs
     const words = sentenceInput.value
       .split(/\s+/)
       .map((w) => w.trim())
@@ -293,7 +276,6 @@ async function createPlaylistOnSpotify() {
       return;
     }
 
-    // Add tracks to playlist
     const addRes = await fetch(
       `https://api.spotify.com/v1/playlists/${playlistData.id}/tracks`,
       {
@@ -310,7 +292,6 @@ async function createPlaylistOnSpotify() {
 
     currentPlaylistId = playlistData.id;
 
-    // Show success message and copy link button
     showError("");
     alert(
       `Playlist created! View it on Spotify:\nhttps://open.spotify.com/playlist/${currentPlaylistId}`
@@ -323,7 +304,6 @@ async function createPlaylistOnSpotify() {
   }
 }
 
-// Copy playlist link button handler
 copyLinkBtn.addEventListener("click", () => {
   if (currentPlaylistId) {
     const url = `https://open.spotify.com/playlist/${currentPlaylistId}`;
@@ -335,13 +315,11 @@ copyLinkBtn.addEventListener("click", () => {
   }
 });
 
-// Button event listeners
 generateBtn.addEventListener("click", () => {
   generatePlaylist(sentenceInput.value);
 });
 createPlaylistBtn.addEventListener("click", createPlaylistOnSpotify);
 
-// On load, check if redirected with tokens and state
 window.onload = () => {
   handleRedirect();
 };
